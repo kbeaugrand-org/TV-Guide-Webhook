@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\google-dialog\google-dialog.csproj" />
+    <ProjectReference Include="..\google-dialog\tv-program-fa.csproj" />
   </ItemGroup>
 
 </Project>
