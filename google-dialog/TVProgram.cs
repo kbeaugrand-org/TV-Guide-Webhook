@@ -28,5 +28,7 @@ namespace google_dialog
         public string? RatingIconSrc { get; set; }
 
         public string? StarRating { get; set; }
+
+        public int LengthInMinutes { get; set; }
     }
 }

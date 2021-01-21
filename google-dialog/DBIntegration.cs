@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
 using System;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -15,9 +16,9 @@ namespace google_dialog
     public static class DBIntegration
     {
         [FunctionName("DBIntegration")]
-        public static async Task Run([TimerTrigger("0 0 0 * * *")]TimerInfo timer, ILogger log)
+        public static async Task Run([TimerTrigger("0 0 0 * * *")] TimerInfo timer, ILogger log)
         {
-            var elements = await LoadDatabase();
+            var elements = await LoadDatabase(log);
             await PopulateTables(elements);
         }
 
@@ -42,7 +43,7 @@ namespace google_dialog
 
             do
             {
-                batch = new TableBatchOperation();                   
+                batch = new TableBatchOperation();
 
                 foreach (var item in elements.Descendants("channel")
                                             .Skip(page * pageSize)
@@ -73,7 +74,7 @@ namespace google_dialog
                                     .Select(c => c.ToTVProgram())
                                     .GroupBy(c => c.PartitionKey);
 
-            foreach(var group in groups)
+            foreach (var group in groups)
             {
                 int page = 0;
                 int pageSize = 50;
@@ -94,7 +95,7 @@ namespace google_dialog
                             var result = await cloudTable.ExecuteBatchAsync(batch);
                         }
                     }
-                    catch(Exception e)
+                    catch (Exception e)
                     {
 
                     }
@@ -104,23 +105,37 @@ namespace google_dialog
                     }
                 }
                 while (batch.Count == pageSize);
-            }           
+            }
         }
 
-        public static async Task<XElement> LoadDatabase()
+        public static async Task<XElement> LoadDatabase(ILogger log)
         {
+            //string filePath = "https://xmltv.ch/xmltv/xmltv-tnt.xml";
+            string filePath = "C:\\Users\\beaugrandk\\Documents\\response.xml";
+
             using (var handler = new HttpClientHandler())
             {
                 using (var client = new HttpClient(handler))
                 {
-                    client.BaseAddress = new Uri("https://xmltv.ch");
+                    //client.DefaultRequestHeaders.UserAgent.Clear();
+                    //client.DefaultRequestHeaders.UserAgent.ParseAdd("PostmanRuntime/7.26.8");
 
-                    using (var fileStream = await client.GetStreamAsync("/xmltv/xmltv-tnt.xml"))
+                    log.LogInformation($"Opening stream at: {filePath}");
+
+                    using (var fileStream = File.OpenRead(filePath))
                     {
-                        return await XElement.LoadAsync(fileStream, LoadOptions.None, CancellationToken.None);
-                    }                    
+                        log.LogDebug($"XML TV Stream opened.");
+
+                        log.LogDebug("Reading Stream...");
+
+                        XElement result = await XElement.LoadAsync(fileStream, LoadOptions.None, CancellationToken.None);
+                        log.LogDebug($"XML TV file parsed");
+
+                        return result;
+                    }
                 }
-            }           
+            }
         }
     }
 }
+

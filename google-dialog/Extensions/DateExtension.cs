@@ -4,7 +4,7 @@ using System.Text;
 
 namespace google_dialog.Extensions
 {
-    public static class DateExtensions
+    public static class DateExtension
     {
         public static DateTimeOffset ParseDate(this string date)
         {

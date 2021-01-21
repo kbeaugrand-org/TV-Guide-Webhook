@@ -37,7 +37,8 @@ namespace google_dialog.Extensions
                 IconSrc = element.Descendants("icon").FirstOrDefault()?.Attribute("src")?.Value,
                 Rating = rating?.Descendants("value").FirstOrDefault()?.Value,
                 RatingIconSrc = rating?.Descendants("icon").FirstOrDefault()?.Attribute("src").Value,
-                StarRating = starRating?.Descendants("value").FirstOrDefault()?.Value?.Split("/")?.First()
+                StarRating = starRating?.Descendants("value").FirstOrDefault()?.Value?.Split("/")?.First(),
+                LengthInMinutes = Int32.Parse(element.Descendants("length").FirstOrDefault().Value)
             };
 
             result.RowKey = BitConverter.ToString(MD5.Create().ComputeHash(Encoding.UTF8.GetBytes(result.Title + result.Start + result.Stop)));
