@@ -1,4 +1,5 @@
-﻿using google_dialog.Intents.GoogleDialogFlow;
+﻿using google_dialog.Helpers;
+using google_dialog.Intents.GoogleDialogFlow;
 using google_dialog.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -39,41 +40,72 @@ namespace google_dialog.Intents
 
         public override async Task<IActionResult> Handle(GoogleDialogFlowRequest request, ILogger log)
         {
-            string period = null;
-            string channel = null;
+            var response = GoogleDialogFlowResponse.FromRequest(request);
 
-            if (request.Intent.Params.ContainsKey("channel"))
-            {
-                channel = request.Intent.Params["channel"].Resolved;
-            }
-
-            if (request.Intent.Params.ContainsKey("period"))
-            {
-                period = request.Intent.Params["period"].Resolved;
-            }
-
-            if (String.IsNullOrWhiteSpace(period))
-            {
-                period = "tonight";
-            }
+            PopulateSessionParameters(response);
 
             var correspondingPrograms = await this.programRepository
-                                                        .SearchPrograms(period, channel);
+                                                        .SearchPrograms(response.Session.Params["dateTime"], 
+                                                                        response.Session.Params["channel"]) as IEnumerable<TVProgram>;
 
             if (!correspondingPrograms.Any())
             {
-                return GetEmptyResults(request);
+                response.Prompt.FirstSimple = new Simple
+                {
+                    Speech = "Désolé, je n'ai pas trouvé de programme qui pourrait vous correspondre."
+                };
+
+                return new OkObjectResult(response);
             }
 
             var content = await CreateLookupContent(correspondingPrograms, log);
 
-            var response = GoogleDialogFlowResponse.FromRequest(request);
             PrepareRichContentAnswer(response, content, log);
             PrepareSpeechContentAnswer(response, content, log);
 
             return new OkObjectResult(response);
         }
- 
+
+        private void PopulateSessionParameters(GoogleDialogFlowResponse response)
+        {
+            DateTimeOffset dateTime = DateTimeOffset.UtcNow;
+
+            if (response.Request.Intent.Params.ContainsKey("channel"))
+            {
+                response.Session.Params["channel"] = response.Request.Intent.Params["channel"].Resolved;
+            }
+            else
+            {
+                response.Session.Params["channel"] = null;
+            }
+
+            if (response.Request.Intent.Params.ContainsKey("dateTime"))
+            {
+                dateTime = new DateTimeOffset(
+                     DynamicHelper.CovertToInt32(response.Request.Intent.Params["dateTime"].Resolved.year, DateTimeOffset.Now.Year),
+                     DynamicHelper.CovertToInt32(response.Request.Intent.Params["dateTime"].Resolved.months, DateTimeOffset.Now.Month),
+                     DynamicHelper.CovertToInt32(response.Request.Intent.Params["dateTime"].Resolved.day, DateTimeOffset.Now.Day),
+                     DynamicHelper.CovertToInt32(response.Request.Intent.Params["dateTime"].Resolved.hours, DateTimeOffset.Now.Hour),
+                     DynamicHelper.CovertToInt32(response.Request.Intent.Params["dateTime"].Resolved.minutes, DateTimeOffset.Now.Minute),
+                     0,
+                     DateTimeOffset.Now.Offset
+                 );
+                
+                response.Session.Params["askedPeriod"] = response.Request.Intent.Params["dateTime"].Original;
+            }
+            else if (response.Request.Intent.Params.ContainsKey("dateTimeToken"))
+            {
+                response.Session.Params["askedPeriod"] = response.Request.Intent.Params["dateTimeToken"].Original;
+                dateTime = PeriodTokenHelper.GetDateTimeFromToken(response.Request.Intent.Params["dateTimeToken"].Resolved);
+            }
+            else
+            {
+                response.Session.Params["askedPeriod"] = "maintenant";
+            }
+
+            response.Session.Params["dateTime"] = dateTime;
+        }
+
         private async Task<IEnumerable<LookupContent>> CreateLookupContent(IEnumerable<TVProgram> correspondingPrograms, ILogger log)
         {
             var programGroups = correspondingPrograms
@@ -146,7 +178,7 @@ namespace google_dialog.Intents
         {
             response.Prompt.FirstSimple = new Simple
             {
-                Speech = $"Voici les programmes qui pourraient vous intéresser {(response.Request.Intent.Params.ContainsKey("period") ? response.Request.Intent.Params["period"].Original : "")}:"
+                Speech = $"Voici les programmes qui pourraient vous intéresser {response.Session.Params["askedPeriod"]} :"
             };
 
             if (!response.Request.Device.Capabilities.Contains("RICH_RESPONSE"))
@@ -154,41 +186,18 @@ namespace google_dialog.Intents
                 StringBuilder responseBuilder = new StringBuilder();
 
                 items.ToList()
-                     .ForEach(c => responseBuilder.AppendLine($"{c.Category}, {c.Title}."));           
+                     .ForEach(c => responseBuilder.AppendLine($"{c.Category}, {c.Title}."));
 
                 response.Prompt.LastSimple = new Simple
                 {
                     Speech = responseBuilder.ToString()
                 };
             }
-   
+
             response.Prompt.AddContent("list", new ListResponseContent
             {
-                Title = $"Au programme de {response.Request.Intent.Params["period"].Original}:",
-                Items = items.Select(c => new ListItemResponseContent {  Key = c.Key }).ToList()
-            });
-        }
-
-        private IActionResult GetEmptyResults(GoogleDialogFlowRequest request)
-        {
-            return new OkObjectResult(new
-            {
-                session = new
-                {
-                    id = request.Session.Id,
-                    @params = new
-                    {
-                        period = request.Intent.Params["period"].Resolved
-                    }
-                },
-                prompt = new
-                {
-                    @override = false,
-                    firstSimple = new
-                    {
-                        speech = "Désolé, je n'ai pas trouvé de programme qui pourrait vous correspondre."
-                    }
-                }
+                Title = $"Au programme {response.Session.Params["askedPeriod"]} :",
+                Items = items.Select(c => new ListItemResponseContent { Key = c.Key }).ToList()
             });
         }
     }

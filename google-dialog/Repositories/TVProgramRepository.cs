@@ -18,9 +18,9 @@ namespace google_dialog.Repositories
 
         }
 
-        public async Task<IEnumerable<TVProgram>> SearchPrograms(string period, string channelName)
+        public async Task<IEnumerable<TVProgram>> SearchPrograms(DateTimeOffset dateTime, string channelName)
         {
-            var searchSpecification = TVProgramByPeriodSpecification.For(period)
+            var searchSpecification = TVProgramByPeriodSpecification.For(dateTime)
                                 .And(TVPRogramByDurationSpecification.For(30));
 
             if (!String.IsNullOrWhiteSpace(channelName))

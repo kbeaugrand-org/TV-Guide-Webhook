@@ -10,7 +10,7 @@ namespace google_dialog.Intents.GoogleDialogFlow
 
         public string Id { get; set; }
 
-        public Dictionary<string, string> Params { get; set; }
+        public Dictionary<string, dynamic> Params { get; set; }
 
         public IReadOnlyList<TypeOverride> TypeOverrides => typeOverrides;
 

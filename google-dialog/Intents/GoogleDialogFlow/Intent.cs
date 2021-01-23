@@ -8,9 +8,10 @@ namespace google_dialog.Intents.GoogleDialogFlow
     {
         public string Original { get; set; }
 
-        public string Resolved { get; set; }
+        public dynamic Resolved { get; set; }
 
     }
+
     public class Intent
     {
         public string Name { get; set; }

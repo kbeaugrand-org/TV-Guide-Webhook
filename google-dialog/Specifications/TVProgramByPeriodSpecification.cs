@@ -5,31 +5,22 @@ namespace google_dialog.Specifications
 {
     public class TVProgramByPeriodSpecification : SpecificationBase<TVProgram>
     {
-        private string period;
+        private DateTimeOffset dateTime;
 
-        private TVProgramByPeriodSpecification(string period)
+        private TVProgramByPeriodSpecification(DateTimeOffset dateTime)
         {
-            this.period = period;
+            this.dateTime = dateTime;
         }
 
-        public static TVProgramByPeriodSpecification For(string period)
+        public static TVProgramByPeriodSpecification For(DateTimeOffset dateTime)
         {
-            return new TVProgramByPeriodSpecification(period);
+            return new TVProgramByPeriodSpecification(dateTime);
         }
 
         protected override string Execute()
         {
-            DateTimeOffset startDate = DateTimeOffset.UtcNow;
-            DateTimeOffset endDate = DateTimeOffset.UtcNow.AddHours(2);
-
-            switch (period)
-            {
-                case "tonight":
-                    startDate = new DateTimeOffset(DateTimeOffset.UtcNow.Year, DateTimeOffset.UtcNow.Month, DateTimeOffset.UtcNow.Day, 19, 40, 0, DateTimeOffset.UtcNow.Offset);
-                    endDate = new DateTimeOffset(DateTimeOffset.UtcNow.Year, DateTimeOffset.UtcNow.Month, DateTimeOffset.UtcNow.Day, 20, 39, 59, DateTimeOffset.UtcNow.Offset);
-                    break;
-
-            }
+            DateTimeOffset startDate = dateTime;
+            DateTimeOffset endDate = dateTime.AddHours(2);
 
             return TableQuery.CombineFilters(
                                     TableQuery.GenerateFilterConditionForDate(nameof(TVProgram.Start), QueryComparisons.GreaterThanOrEqual, startDate),
