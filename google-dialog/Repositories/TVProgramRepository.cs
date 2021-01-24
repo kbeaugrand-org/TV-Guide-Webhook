@@ -18,6 +18,26 @@ namespace google_dialog.Repositories
 
         }
 
+        public async Task<IEnumerable<TVProgram>> SearchProgramsByCategory(DateTimeOffset dateTime, string channelName, string categoryName)
+        {
+            var searchSpecification = TVProgramByPeriodSpecification.For(dateTime)
+                                            .And(TVPRogramByDurationSpecification.For(30));
+
+            if (!String.IsNullOrWhiteSpace(channelName))
+            {
+                searchSpecification = searchSpecification
+                                        .And(TVProgramByChannelSpecification.For(channelName));
+            }
+
+            var tableQuery = searchSpecification
+                                        .ToTableQuery();
+
+            var querySegment = await base.cloudTable
+                                         .ExecuteQuerySegmentedAsync<TVProgram>(tableQuery, new TableContinuationToken());
+
+            return querySegment.ToList().Where(c => c.Category.Contains(categoryName, StringComparison.OrdinalIgnoreCase));
+        }
+
         public async Task<IEnumerable<TVProgram>> SearchPrograms(DateTimeOffset dateTime, string channelName)
         {
             var searchSpecification = TVProgramByPeriodSpecification.For(dateTime)

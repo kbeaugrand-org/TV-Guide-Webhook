@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace google_dialog.Intents
 {
-    public class LookupIntent : IntentBase
+    public class SearchCategoryIntent : IntentBase
     {
         private TVProgramRepository programRepository = new TVProgramRepository();
 
@@ -24,8 +24,9 @@ namespace google_dialog.Intents
             PopulateSessionParameters(response);
 
             var correspondingPrograms = await this.programRepository
-                                                        .SearchPrograms(response.Session.Params["dateTime"],
-                                                                        response.Session.Params["channel"]) as IEnumerable<TVProgram>;
+                                                        .SearchProgramsByCategory(response.Session.Params["dateTime"],
+                                                                                  response.Session.Params["channel"],
+                                                                                  response.Session.Params["category"]) as IEnumerable<TVProgram>;
 
             if (!correspondingPrograms.Any())
             {
@@ -56,6 +57,15 @@ namespace google_dialog.Intents
         private void PopulateSessionParameters(GoogleDialogFlowResponse response)
         {
             DateTimeOffset dateTime = DateTimeOffset.UtcNow;
+
+            if (response.Request.Intent.Params.ContainsKey("category"))
+            {
+                response.Session.Params["askedCategory"] = response.Request.Intent.Params["category"].Original;
+                response.Session.Params["category"] = response.Request.Intent.Params["category"].Resolved;
+            } else
+            {
+                response.Session.Params["category"] = string.Empty;
+            }
 
             if (response.Request.Intent.Params.ContainsKey("channel"))
             {
@@ -189,7 +199,7 @@ namespace google_dialog.Intents
                     StringBuilder responseBuilder = new StringBuilder();
 
                     items.ToList()
-                         .ForEach(c => responseBuilder.AppendLine($"{c.Category}, {c.Title}."));
+                         .ForEach(c => responseBuilder.AppendLine($"{c.Title}."));
 
                     response.Prompt.LastSimple = new Simple
                     {
@@ -199,12 +209,12 @@ namespace google_dialog.Intents
 
                 response.Prompt.FirstSimple = new Simple
                 {
-                    Speech = $"Voici les programmes qui pourraient vous intéresser {response.Session.Params["askedPeriod"]} :"
+                    Speech = $"Voici les {response.Session.Params["askedCategory"]}s qui pourraient vous intéresser {response.Session.Params["askedPeriod"]} :"
                 };
 
                 response.Prompt.AddContent("list", new ListResponseContent
                 {
-                    Title = $"Au programme {response.Session.Params["askedPeriod"]} :",
+                    Title = $"Les {response.Session.Params["askedCategory"]}s, {response.Session.Params["askedPeriod"]} :",
                     Items = items.Select(c => new ListItemResponseContent { Key = c.Key }).ToList()
                 });
             });

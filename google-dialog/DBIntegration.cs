@@ -111,21 +111,15 @@ namespace google_dialog
         public static async Task<XElement> LoadDatabase(ILogger log)
         {
             string filePath = "https://xmltv.ch/xmltv/xmltv-tnt.xml";
-            //string filePath = "C:\\Users\\beaugrandk\\Documents\\response.xml";
 
             using (var handler = new HttpClientHandler())
             {
                 using (var client = new HttpClient(handler))
                 {
-                    //client.DefaultRequestHeaders.UserAgent.Clear();
-                    //client.DefaultRequestHeaders.UserAgent.ParseAdd("PostmanRuntime/7.26.8");
-
                     log.LogInformation($"Opening stream at: {filePath}");
 
                     using (var fileStream = await client.GetStreamAsync(filePath))
                     {
-                        log.LogDebug($"XML TV Stream opened.");
-
                         log.LogDebug("Reading Stream...");
 
                         XElement result = await XElement.LoadAsync(fileStream, LoadOptions.None, CancellationToken.None);

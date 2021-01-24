@@ -34,6 +34,9 @@ namespace Sample
                     case "LookUpIntent":
                         intent = new LookupIntent();
                         break;
+                    case "SearchCategoryIntent":
+                        intent = new SearchCategoryIntent();
+                        break;
                     default:
                         return new BadRequestObjectResult($"Intent {request.Intent.Name} is not handled!");
                 }
