@@ -40,15 +40,13 @@ namespace google_dialog.Intents
 
             var content = await CreateLookupContent(correspondingPrograms, log);
 
-            PrepareRichContentAnswer(response, content, log);
-
             if (!response.Request.Intent.Params.ContainsKey("channel"))
             {
-                await PrepareSpeechContentAnswer(response, content, log);
+                await PrepareMultipleChannelAnswer(response, content, log);
             }
             else
             {
-                await PrepareSpeechContentAnswerForSingleChannel(response, content, log);
+                await PrepareSingleChannelAnswer(response, content, log);
             }
 
             return new OkObjectResult(response);
@@ -140,62 +138,17 @@ namespace google_dialog.Intents
                 }).ToArray();
         }
 
-        private void PrepareRichContentAnswer(GoogleDialogFlowResponse response, IEnumerable<LookupContent> items, ILogger log)
-        {
-            response.Session.AddTypeOverride(new TypeOverride
-            {
-                Name = "prompt_program",
-                TypeOverrideMode = "TYPE_REPLACE",
-                Synonym = new TypeOverrideSynonym
-                {
-                    Entries = items.Select(c => new TypeOverrideSynonymEntry
-                    {
-                        Name = c.Key,
-                        Synonyms = new string[]
-                                    {
-                                        c.ChanelName,
-                                        c.ProgramTitle
-                                    },
-                        Display = new SynonymEntryDisplay
-                        {
-                            Title = c.Title,
-                            Description = c.Description,
-                            Image = new SynonymEntryDisplayImage
-                            {
-                                Url = c.IconSrc,
-                                Alt = c.Title
-                            }
-                        }
-                    }).ToList()
-                }
-            });
-        }
-
-        private async Task PrepareSpeechContentAnswerForSingleChannel(GoogleDialogFlowResponse response, IEnumerable<LookupContent> items, ILogger log)
-        {
-            var channel = (await this.channelRepository.SearchChannels())
-                            .Single(channel => channel.RowKey == response.Request.Intent.Params["channel"].Resolved);
-
-            var program = items.First();
-
-            response.Prompt.FirstSimple = new Simple
-            {
-                Speech = $"{response.Session.Params["askedPeriod"]}, sur {channel.DisplayName} à {program.StartHour} il y a \"{program.ProgramTitle}.\""
-            };
-
-            response.Prompt.AddContent("list", new ListResponseContent
-            {
-                Title = $"{response.Session.Params["askedPeriod"]}, sur {channel.DisplayName}",
-                Items = items.Select(c => new ListItemResponseContent { Key = c.Key }).ToList()
-            });
-        }
-
-        private Task PrepareSpeechContentAnswer(GoogleDialogFlowResponse response, IEnumerable<LookupContent> items, ILogger log)
+        private Task PrepareMultipleChannelAnswer(GoogleDialogFlowResponse response, IEnumerable<LookupContent> items, ILogger log)
         {
             return Task.Factory.StartNew(() =>
             {
                 if (!response.Request.Device.Capabilities.Contains("RICH_RESPONSE"))
                 {
+                    response.Prompt.FirstSimple = new Simple
+                    {
+                        Speech = $"Voici les {response.Session.Params["askedCategory"]}s qui pourraient vous intéresser {response.Session.Params["askedPeriod"]} :"
+                    };
+
                     StringBuilder responseBuilder = new StringBuilder();
 
                     items.ToList()
@@ -205,19 +158,101 @@ namespace google_dialog.Intents
                     {
                         Speech = responseBuilder.ToString()
                     };
-                }
 
+                    response.Scene.Next = new Scene
+                    {
+                        Name = "actions.scene.END_CONVERSATION"
+                    };
+                }
+                else
+                {
+                    response.Prompt.AddContent("list", new ListResponseContent
+                    {
+                        Title = $"Les {response.Session.Params["askedCategory"]}s, {response.Session.Params["askedPeriod"]} :",
+                        Items = items.Select(c => new ListItemResponseContent { Key = c.Key }).ToList()
+                    });
+
+                    response.Session.AddTypeOverride(new TypeOverride
+                    {
+                        Name = "prompt_program",
+                        TypeOverrideMode = "TYPE_REPLACE",
+                        Synonym = new TypeOverrideSynonym
+                        {
+                            Entries = items.Select(c => new TypeOverrideSynonymEntry
+                            {
+                                Name = c.Key,
+                                Synonyms = new string[]
+                                            {
+                                        c.ChanelName,
+                                        c.ProgramTitle
+                                            },
+                                Display = new SynonymEntryDisplay
+                                {
+                                    Title = c.Title,
+                                    Description = c.Description,
+                                    Image = new SynonymEntryDisplayImage
+                                    {
+                                        Url = c.IconSrc,
+                                        Alt = c.Title
+                                    }
+                                }
+                            }).ToList()
+                        }
+                    });
+                }
+            });
+        }
+
+        private async Task PrepareSingleChannelAnswer(GoogleDialogFlowResponse response, IEnumerable<LookupContent> items, ILogger log)
+        {
+            var channel = (await this.channelRepository.SearchChannels())
+                            .Single(channel => channel.RowKey == response.Request.Intent.Params["channel"].Resolved);
+
+            var program = items.First();
+
+            if (!response.Request.Device.Capabilities.Contains("RICH_RESPONSE"))
+            {
                 response.Prompt.FirstSimple = new Simple
                 {
-                    Speech = $"Voici les {response.Session.Params["askedCategory"]}s qui pourraient vous intéresser {response.Session.Params["askedPeriod"]} :"
+                    Speech = $"{response.Session.Params["askedPeriod"]}, sur {channel.DisplayName} à {program.StartHour} il y a \"{program.ProgramTitle}.\""
                 };
-
+            }
+            else
+            {
                 response.Prompt.AddContent("list", new ListResponseContent
                 {
-                    Title = $"Les {response.Session.Params["askedCategory"]}s, {response.Session.Params["askedPeriod"]} :",
+                    Title = $"{response.Session.Params["askedPeriod"]}, sur {channel.DisplayName}",
                     Items = items.Select(c => new ListItemResponseContent { Key = c.Key }).ToList()
                 });
-            });
+
+                response.Session.AddTypeOverride(new TypeOverride
+                {
+                    Name = "prompt_program",
+                    TypeOverrideMode = "TYPE_REPLACE",
+                    Synonym = new TypeOverrideSynonym
+                    {
+                        Entries = items.Select(c => new TypeOverrideSynonymEntry
+                        {
+                            Name = c.Key,
+                            Synonyms = new string[]
+                                        {
+                                        c.ChanelName,
+                                        c.ProgramTitle
+                                        },
+                            Display = new SynonymEntryDisplay
+                            {
+                                Title = c.Title,
+                                Description = c.Description,
+                                Image = new SynonymEntryDisplayImage
+                                {
+                                    Url = c.IconSrc,
+                                    Alt = c.Title
+                                }
+                            }
+                        }).ToList()
+                    }
+                });
+            }
         }
     }
 }

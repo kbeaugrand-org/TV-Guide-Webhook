@@ -14,7 +14,7 @@ namespace google_dialog.Intents
 
             response.Prompt.FirstSimple = new Simple
             {
-                Speech = "Bonjour"
+                Speech = "Bonjour. Que puis-je faire pour vous ?"
             };
 
             response.Prompt.Override = false;

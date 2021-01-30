@@ -50,6 +50,11 @@ namespace google_dialog.Intents
                 await PrepareSpeechContentAnswerForSingleChannel(response, content, log);
             }
 
+            response.Scene.Next = new Scene
+            {
+                Name = "actions.scene.END_CONVERSATION"
+            };
+
             return new OkObjectResult(response);
         }
 
@@ -78,7 +83,7 @@ namespace google_dialog.Intents
                      DateTimeOffset.Now.Offset
                  );
 
-                response.Session.Params["askedPeriod"] = response.Request.Intent.Params["dateTime"].Original;
+                response.Session.Params["askedPeriod"] = $"à partir de {response.Request.Intent.Params["dateTime"].Original}";
             }
             else if (response.Request.Intent.Params.ContainsKey("dateTimeToken"))
             {
@@ -95,17 +100,23 @@ namespace google_dialog.Intents
 
         private async Task<IEnumerable<LookupContent>> CreateLookupContent(IEnumerable<TVProgram> correspondingPrograms, ILogger log)
         {
-            var programGroups = correspondingPrograms
-                .GroupBy(c => c.Channel)
-                .OrderByDescending(c => c.Select(x => x.StarRating)?.Max());
+            var channels = await channelRepository
+                    .SearchChannels();
 
-            var channels = await channelRepository.SearchChannels();
+            // Group programs by Channels
+            var programGroups = correspondingPrograms
+                                        .GroupBy(c => c.Channel);
+
+            Dictionary<TVChannel, TVProgram> content = new Dictionary<TVChannel, TVProgram>();
 
             return programGroups
-                .Take(4)
                 .Select(p =>
                 {
-                    var program = p.OrderBy(x => x.Start).First();
+                    // In Each channel select the most important program in the period.
+                    var program = p.OrderByDescending(x => x.Stop - x.Start)
+                                      .ThenByDescending(x => x.StarRating)
+                                      .First();
+
                     var programChanel = channels.SingleOrDefault(c => c.RowKey == p.Key);
 
                     var programStartDate = program.Start.ToLocalTime();
@@ -125,13 +136,28 @@ namespace google_dialog.Intents
                         Description = program.Description,
                         Category = program.Category,
                         IconSrc = program.IconSrc,
-                        RatingIconSrc = program.RatingIconSrc
+                        RatingIconSrc = program.RatingIconSrc,
+                        StarRating = program.StarRating
                     };
-                }).ToArray();
+                })
+                .OrderByDescending(x => x.StarRating)
+                .Take(4)
+                .ToArray();
         }
 
         private void PrepareRichContentAnswer(GoogleDialogFlowResponse response, IEnumerable<LookupContent> items, ILogger log)
         {
+            if (!response.Request.Device.Capabilities.Contains("RICH_RESPONSE"))
+            {
+                return;
+            }
+
+            response.Prompt.AddContent("list", new ListResponseContent
+            {
+                Title = $"Au programme {response.Session.Params["askedPeriod"]} :",
+                Items = items.Select(c => new ListItemResponseContent { Key = c.Key }).ToList()
+            });
+
             response.Session.AddTypeOverride(new TypeOverride
             {
                 Name = "prompt_program",
@@ -201,12 +227,6 @@ namespace google_dialog.Intents
                 {
                     Speech = $"Voici les programmes qui pourraient vous intéresser {response.Session.Params["askedPeriod"]} :"
                 };
-
-                response.Prompt.AddContent("list", new ListResponseContent
-                {
-                    Title = $"Au programme {response.Session.Params["askedPeriod"]} :",
-                    Items = items.Select(c => new ListItemResponseContent { Key = c.Key }).ToList()
-                });
             });
         }
     }

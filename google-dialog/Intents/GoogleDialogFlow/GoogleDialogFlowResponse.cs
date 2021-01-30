@@ -12,6 +12,8 @@ namespace google_dialog.Intents.GoogleDialogFlow
 
         public Session Session => this.Request.Session;
 
+        public Scene Scene => this.Request.Scene;
+        
         public Prompt Prompt { get; set; } = new Prompt();
 
         private GoogleDialogFlowResponse(GoogleDialogFlowRequest request)

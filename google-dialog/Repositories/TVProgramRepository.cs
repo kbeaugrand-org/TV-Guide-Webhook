@@ -20,8 +20,8 @@ namespace google_dialog.Repositories
 
         public async Task<IEnumerable<TVProgram>> SearchProgramsByCategory(DateTimeOffset dateTime, string channelName, string categoryName)
         {
-            var searchSpecification = TVProgramByPeriodSpecification.For(dateTime)
-                                            .And(TVPRogramByDurationSpecification.For(30));
+            SpecificationBase<TVProgram> searchSpecification = TVProgramByPeriodSpecification.For(dateTime)/*
+                                            .And(TVPRogramByDurationSpecification.For(30))*/;
 
             if (!String.IsNullOrWhiteSpace(channelName))
             {
@@ -40,8 +40,8 @@ namespace google_dialog.Repositories
 
         public async Task<IEnumerable<TVProgram>> SearchPrograms(DateTimeOffset dateTime, string channelName)
         {
-            var searchSpecification = TVProgramByPeriodSpecification.For(dateTime)
-                                .And(TVPRogramByDurationSpecification.For(30));
+            SpecificationBase<TVProgram> searchSpecification = TVProgramByPeriodSpecification.For(dateTime)/*
+                                .And(TVPRogramByDurationSpecification.For(30))*/;
 
             if (!String.IsNullOrWhiteSpace(channelName))
             {

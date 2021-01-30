@@ -9,5 +9,7 @@ namespace google_dialog.Intents.GoogleDialogFlow
         public string Name { get; set; }
 
         public string SlotFillingStatus { get; set; }
+
+        public Scene Next { get; set; }
     }
 }

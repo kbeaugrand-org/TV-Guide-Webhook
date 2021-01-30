@@ -23,5 +23,7 @@ namespace google_dialog
         public string StartHour { get; set; }
 
         public string RatingIconSrc { get; set; }
+
+        public string StarRating { get; set; }
     }
 }
